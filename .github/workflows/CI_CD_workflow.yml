@@ -2,11 +2,10 @@ name: CI/CD Workflow
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 env:
-  MY_SECRET: ${{ secrets.MY_SECRET }}
+  MY_SECRET: ${{ secrets.haghob }}
 
 jobs:
   build-and-test:
@@ -44,7 +43,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Use Node.js 14.x
+      - name: Use Node.js
         uses: actions/setup-node@v2
         with:
           node-version: 14.x
@@ -55,7 +54,7 @@ jobs:
       - name: Run ESLint
         run: npm run eslint
 
-  test-coverage:
+  coverage-report:
     needs: static-code-analysis
     runs-on: ubuntu-latest
 
@@ -63,13 +62,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Run JaCoCo
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Run test coverage report
         run: mvn clean test jacoco:report
 
   deploy:
-    needs: test-coverage
+    needs: coverage-report
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.modified, 'specific_folder/')
 
     steps:
       - name: Checkout code
@@ -85,7 +89,7 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: Deployment to production successful
+          text: 'Deployment to production successful'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
@@ -94,6 +98,6 @@ jobs:
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
-          text: Deployment to production failed. Rollback initiated.
+          text: 'Deployment to production failed. Rollback initiated.'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
